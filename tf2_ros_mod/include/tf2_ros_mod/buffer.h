@@ -63,7 +63,9 @@ namespace tf2_ros_mod
      * @param debug Whether to advertise the view_frames service that exposes debugging information from the buffer
      * @return 
      */
-    Buffer(tf2_mod::BufferCore::CacheCreatorPtr ptr, bool debug = false);
+    Buffer(tf2_mod::BufferCore::CacheCreatorPtr ptr 
+             = tf2_mod::BufferCore::CacheCreatorPtr(), 
+           bool debug = false);
 
     /** \brief Get the transform between two frames by frame ID.
      * \param target_frame The frame to which data should be transformed

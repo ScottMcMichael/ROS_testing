@@ -36,8 +36,7 @@
 
 #include <cmath>
 
-using namespace tf2_mod;
-
+using namespace tf2;
 
 void setIdentity(TransformStorage& stor)
 {

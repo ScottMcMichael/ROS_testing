@@ -133,7 +133,7 @@ public:
    * \param cache_time How long to keep a history of transforms in nanoseconds
    *
    */
-  BufferCore(CacheCreatorPtr);
+  BufferCore(CacheCreatorPtr ptr=CacheCreatorPtr());
   virtual ~BufferCore(void);
 
   /** \brief Clear all data */

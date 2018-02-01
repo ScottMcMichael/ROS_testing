@@ -274,9 +274,12 @@ bool BufferCore::setTransform(const geometry_msgs::TransformStamped& transform_i
     CompactFrameID frame_number = lookupOrInsertFrameNumber(stripped.child_frame_id);
     TimeCacheInterfacePtr frame = getFrame(frame_number);
     if (frame == NULL)
+    {
       frame = cache_creator_ptr_->createCache(frame_number, is_static, 
                                               stripped.header.frame_id,
                                               stripped.child_frame_id);
+      frames_[frame_number] = frame;
+    }
 
     if (frame->insertData(TransformStorage(stripped, lookupOrInsertFrameNumber(stripped.header.frame_id), frame_number)))
     {

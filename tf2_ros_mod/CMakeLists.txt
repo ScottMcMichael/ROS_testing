@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   rosgraph
   rospy
   tf2
+  tf2_ros
   tf2_mod
   tf2_msgs
   ${TF2_PY}
@@ -33,6 +34,7 @@ catkin_package(
   roscpp
   rosgraph
   tf2
+  tf2_ros
   tf2_mod
   tf2_msgs
   ${TF2_PY}
@@ -105,6 +107,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   rostest
   tf2
+  tf2_ros
+  tf2_mod
   tf2_msgs
   ${TF2_PY}
 )
@@ -122,6 +126,7 @@ target_link_libraries(${PROJECT_NAME}_test_listener
   ${GTEST_LIBRARIES}
 )
 
+message("CL = ${catkin_LIBRARIES}")
 target_link_libraries(${PROJECT_NAME}_test_time_reset
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}

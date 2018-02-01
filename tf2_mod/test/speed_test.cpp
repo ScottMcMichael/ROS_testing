@@ -49,7 +49,7 @@ int main(int argc, char** argv)
 
   console_bridge::setLogLevel(console_bridge::CONSOLE_BRIDGE_LOG_INFO);
 
-  tf2::BufferCore bc;
+  tf2_mod::BufferCore bc;
   geometry_msgs::TransformStamped t;
   t.header.stamp = ros::Time(1);
   t.header.frame_id = "root";

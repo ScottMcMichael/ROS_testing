@@ -34,9 +34,12 @@
 #include "tf2/LinearMath/Vector3.h"
 #include "tf2/exceptions.h"
 
+using tf2_mod::BufferCore;
+using tf2_mod::TestBufferCore;
+
 TEST(tf2, setTransformFail)
 {
-  tf2::BufferCore tfc;
+  BufferCore tfc;
   geometry_msgs::TransformStamped st;
   EXPECT_FALSE(tfc.setTransform(st, "authority1"));
 
@@ -44,7 +47,7 @@ TEST(tf2, setTransformFail)
 
 TEST(tf2, setTransformValid)
 {
-  tf2::BufferCore tfc;
+  BufferCore tfc;
   geometry_msgs::TransformStamped st;
   st.header.frame_id = "foo";
   st.header.stamp = ros::Time(1.0);
@@ -56,7 +59,7 @@ TEST(tf2, setTransformValid)
 
 TEST(tf2, setTransformInvalidQuaternion)
 {
-  tf2::BufferCore tfc;
+  BufferCore tfc;
   geometry_msgs::TransformStamped st;
   st.header.frame_id = "foo";
   st.header.stamp = ros::Time(1.0);
@@ -68,14 +71,14 @@ TEST(tf2, setTransformInvalidQuaternion)
 
 TEST(tf2_lookupTransform, LookupException_Nothing_Exists)
 {
-  tf2::BufferCore tfc;
+  BufferCore tfc;
   EXPECT_THROW(tfc.lookupTransform("a", "b", ros::Time().fromSec(1.0)), tf2::LookupException);
 
 }
 
 TEST(tf2_canTransform, Nothing_Exists)
 {
-  tf2::BufferCore tfc;
+  BufferCore tfc;
   EXPECT_FALSE(tfc.canTransform("a", "b", ros::Time().fromSec(1.0)));
 
   std::string error_msg = std::string();
@@ -86,7 +89,7 @@ TEST(tf2_canTransform, Nothing_Exists)
 
 TEST(tf2_lookupTransform, LookupException_One_Exists)
 {
-  tf2::BufferCore tfc;
+  BufferCore tfc;
   geometry_msgs::TransformStamped st;
   st.header.frame_id = "foo";
   st.header.stamp = ros::Time(1.0);
@@ -99,7 +102,7 @@ TEST(tf2_lookupTransform, LookupException_One_Exists)
 
 TEST(tf2_canTransform, One_Exists)
 {
-  tf2::BufferCore tfc;
+  BufferCore tfc;
   geometry_msgs::TransformStamped st;
   st.header.frame_id = "foo";
   st.header.stamp = ros::Time(1.0);
@@ -111,8 +114,8 @@ TEST(tf2_canTransform, One_Exists)
 
 TEST(tf2_chainAsVector, chain_v_configuration)
 {
-  tf2::BufferCore mBC;
-  tf2::TestBufferCore tBC;
+  BufferCore mBC;
+  TestBufferCore tBC;
 
   geometry_msgs::TransformStamped st;
   st.header.stamp = ros::Time(0);
@@ -194,8 +197,8 @@ TEST(tf2_chainAsVector, chain_v_configuration)
 
 TEST(tf2_walkToTopParent, walk_i_configuration)
 {
-  tf2::BufferCore mBC;
-  tf2::TestBufferCore tBC;
+  BufferCore mBC;
+  TestBufferCore tBC;
 
   geometry_msgs::TransformStamped st;
   st.header.stamp = ros::Time(0);
@@ -241,8 +244,8 @@ TEST(tf2_walkToTopParent, walk_i_configuration)
 
 TEST(tf2_walkToTopParent, walk_v_configuration)
 {
-  tf2::BufferCore mBC;
-  tf2::TestBufferCore tBC;
+  BufferCore mBC;
+  TestBufferCore tBC;
 
   geometry_msgs::TransformStamped st;
   st.header.stamp = ros::Time(0);
