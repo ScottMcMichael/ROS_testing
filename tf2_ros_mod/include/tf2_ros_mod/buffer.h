@@ -29,8 +29,8 @@
 
 /** \author Wim Meeussen */
 
-#ifndef TF2_ROS_BUFFER_H
-#define TF2_ROS_BUFFER_H
+#ifndef TF2_ROS_MOD_BUFFER_H
+#define TF2_ROS_MOD_BUFFER_H
 
 #include <tf2_ros_mod/buffer_interface.h>
 #include <tf2_mod/buffer_core.h>

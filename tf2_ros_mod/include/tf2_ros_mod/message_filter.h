@@ -29,8 +29,8 @@
 
 /** \author Josh Faust */
 
-#ifndef TF2_ROS_MESSAGE_FILTER_H
-#define TF2_ROS_MESSAGE_FILTER_H
+#ifndef TF2_ROS_MOD_MESSAGE_FILTER_H
+#define TF2_ROS_MOD_MESSAGE_FILTER_H
 
 #include <tf2/buffer_core.h>
 

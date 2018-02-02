@@ -34,8 +34,8 @@
 *
 * Author: Eitan Marder-Eppstein
 *********************************************************************/
-#ifndef TF2_ROS_BUFFER_SERVER_H_
-#define TF2_ROS_BUFFER_SERVER_H_
+#ifndef TF2_ROS_MOD_BUFFER_SERVER_H_
+#define TF2_ROS_MOD_BUFFER_SERVER_H_
 
 #include <actionlib/server/action_server.h>
 #include <tf2_msgs/LookupTransformAction.h>

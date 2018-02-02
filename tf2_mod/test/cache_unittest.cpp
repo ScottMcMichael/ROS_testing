@@ -28,7 +28,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <tf2/time_cache.h>
+#include <tf2_mod/time_cache.h>
 #include <sys/time.h>
 #include "tf2/LinearMath/Quaternion.h"
 #include <stdexcept>
@@ -62,7 +62,9 @@ double get_rand()
   return values[step];
 }
 
-using namespace tf2;
+//using namespace tf2;
+using tf2::TransformStorage;
+typedef tf2_mod::CountCache TimeCache;
 
 
 void setIdentity(TransformStorage& stor)
@@ -413,3 +415,31 @@ int main(int argc, char **argv){
   return RUN_ALL_TESTS();
 }
 
+TEST(CountCache, Ordering)
+{
+  unsigned int limit = 3;
+  
+  tf2_mod::CountCache  cache(limit);
+
+  TransformStorage stor;
+  setIdentity(stor);
+  
+  // Add one more item than there is room for
+  for ( uint64_t i = 1; i <= limit+1 ; i++ )
+  {
+    stor.frame_id_ = i;
+    stor.stamp_ = ros::Time().fromNSec(i);
+    
+    cache.insertData(stor);
+  }
+
+  // The last few items should be recalled but the first should be gone.
+  for ( uint64_t i = 2; i <= limit+1 ; i++ )
+  {
+    cache.getData(ros::Time().fromNSec(i), stor);
+    EXPECT_EQ(stor.frame_id_, i);
+    EXPECT_EQ(stor.stamp_, ros::Time().fromNSec(i));
+  }
+  EXPECT_FALSE(cache.getData(ros::Time().fromNSec(1), stor));
+  
+}

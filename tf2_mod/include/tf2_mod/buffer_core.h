@@ -29,8 +29,8 @@
 
 /** \author Tully Foote */
 
-#ifndef TF2_BUFFER_CORE_H
-#define TF2_BUFFER_CORE_H
+#ifndef TF2_MOD_BUFFER_CORE_H
+#define TF2_MOD_BUFFER_CORE_H
 
 #include "tf2/transform_storage.h"
 #include "tf2/time_cache.h"

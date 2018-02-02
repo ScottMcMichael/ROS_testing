@@ -34,8 +34,8 @@
 *
 * Author: Eitan Marder-Eppstein
 *********************************************************************/
-#ifndef TF2_ROS_BUFFER_CLIENT_H_
-#define TF2_ROS_BUFFER_CLIENT_H_
+#ifndef TF2_ROS_MOD_BUFFER_CLIENT_H_
+#define TF2_ROS_MOD_BUFFER_CLIENT_H_
 
 #include <tf2_ros_mod/buffer_interface.h>
 #include <actionlib/client/simple_action_client.h>

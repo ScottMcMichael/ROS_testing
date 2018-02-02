@@ -64,9 +64,9 @@ TransformStorage::TransformStorage(const geometry_msgs::TransformStamped& data, 
 }
 */
 
-/*
 
-TimeCache::TimeCache(ros::Duration max_storage_time)
+
+TimeCache2::TimeCache2(ros::Duration max_storage_time)
 : max_storage_time_(max_storage_time)
 {}
 
@@ -105,7 +105,7 @@ void createExtrapolationException3(ros::Time t0, ros::Time t1, std::string* erro
 
 
 
-uint8_t TimeCache::findClosest(TransformStorage*& one, TransformStorage*& two, ros::Time target_time, std::string* error_str)
+uint8_t TimeCache2::findClosest(TransformStorage*& one, TransformStorage*& two, ros::Time target_time, std::string* error_str)
 {
   //No values stored
   if (storage_.empty())
@@ -180,7 +180,7 @@ uint8_t TimeCache::findClosest(TransformStorage*& one, TransformStorage*& two, r
 
 }
 
-void TimeCache::interpolate(const TransformStorage& one, const TransformStorage& two, ros::Time time, TransformStorage& output)
+void TimeCache2::interpolate(const TransformStorage& one, const TransformStorage& two, ros::Time time, TransformStorage& output)
 {
   // Check for zero distance case
   if( two.stamp_ == one.stamp_ )
@@ -202,7 +202,7 @@ void TimeCache::interpolate(const TransformStorage& one, const TransformStorage&
   output.child_frame_id_ = one.child_frame_id_;
 }
 
-bool TimeCache::getData(ros::Time time, TransformStorage & data_out, std::string* error_str) //returns false if data not available
+bool TimeCache2::getData(ros::Time time, TransformStorage & data_out, std::string* error_str) //returns false if data not available
 {
   TransformStorage* p_temp_1;
   TransformStorage* p_temp_2;
@@ -235,7 +235,7 @@ bool TimeCache::getData(ros::Time time, TransformStorage & data_out, std::string
   return true;
 }
 
-CompactFrameID TimeCache::getParent(ros::Time time, std::string* error_str)
+CompactFrameID TimeCache2::getParent(ros::Time time, std::string* error_str)
 {
   TransformStorage* p_temp_1;
   TransformStorage* p_temp_2;
@@ -249,7 +249,7 @@ CompactFrameID TimeCache::getParent(ros::Time time, std::string* error_str)
   return p_temp_1->frame_id_;
 }
 
-bool TimeCache::insertData(const TransformStorage& new_data)
+bool TimeCache2::insertData(const TransformStorage& new_data)
 {
   L_TransformStorage::iterator storage_it = storage_.begin();
 
@@ -274,17 +274,17 @@ bool TimeCache::insertData(const TransformStorage& new_data)
   return true;
 }
 
-void TimeCache::clearList()
+void TimeCache2::clearList()
 {
   storage_.clear();
 }
 
-unsigned int TimeCache::getListLength()
+unsigned int TimeCache2::getListLength()
 {
   return storage_.size();
 }
 
-P_TimeAndFrameID TimeCache::getLatestTimeAndParent()
+P_TimeAndFrameID TimeCache2::getLatestTimeAndParent()
 {
   if (storage_.empty())
   {
@@ -295,19 +295,19 @@ P_TimeAndFrameID TimeCache::getLatestTimeAndParent()
   return std::make_pair(ts.stamp_, ts.frame_id_);
 }
 
-ros::Time TimeCache::getLatestTimestamp() 
+ros::Time TimeCache2::getLatestTimestamp() 
 {   
   if (storage_.empty()) return ros::Time(); //empty list case
   return storage_.front().stamp_;
 }
 
-ros::Time TimeCache::getOldestTimestamp() 
+ros::Time TimeCache2::getOldestTimestamp() 
 {   
   if (storage_.empty()) return ros::Time(); //empty list case
   return storage_.back().stamp_;
 }
 
-void TimeCache::pruneList()
+void TimeCache2::pruneList()
 {
   ros::Time latest_time = storage_.begin()->stamp_;
   
@@ -315,8 +315,8 @@ void TimeCache::pruneList()
   {
     storage_.pop_back();
   }
-}*/
-/*
+}
+
 //==========================================================================================
 // CountCache
 
@@ -325,7 +325,7 @@ CountCache::CountCache(size_t max_num_entries)
 {}
 
 // This is the same as for TimeCache but with the time limit removed.
-bool CountCache::insertData(const TransformStorage& new_data)
+bool CountCache::insertData(const tf2::TransformStorage& new_data)
 {
   L_TransformStorage::iterator storage_it = storage_.begin();
 
@@ -336,7 +336,7 @@ bool CountCache::insertData(const TransformStorage& new_data)
     storage_it++;
   }
   storage_.insert(storage_it, new_data);
-  insertion_order_queue_.push_front(new_data.stamp_);
+  insertion_order_queue_.push(new_data.stamp_);
   
   pruneList();
   return true;
@@ -350,16 +350,17 @@ void CountCache::pruneList()
 
   // Remove the entry from our time-sorted storage_ that matches the
   //  oldest entry in our insertion_order_queue
-  for (L_TransformStorage::iterator iter = std::storage_.begin(); iter != storage_.end(); ++iter)
+  for (L_TransformStorage::iterator iter = storage_.begin(); iter != storage_.end(); ++iter)
   {
-    if (iter->stamp_ == insertion_order_queue_.back()->stamp_)
+    if (iter->stamp_ == insertion_order_queue_.front())
     {
       storage_.erase(iter);
-      insertion_order_queue_.pop_back();
+      insertion_order_queue_.pop();
       break;
     }
   }
+
 }
-*/
+
 } // namespace tf2
 

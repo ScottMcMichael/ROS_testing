@@ -29,10 +29,11 @@
 
 /** \author Tully Foote */
 
-#ifndef TF2_TIME_CACHE_H
-#define TF2_TIME_CACHE_H
+#ifndef TF2_MOD_TIME_CACHE_H
+#define TF2_MOD_TIME_CACHE_H
 
 #include "tf2/transform_storage.h"
+#include "tf2/time_cache.h"
 
 #include <deque>
 #include <queue>
@@ -91,15 +92,15 @@ typedef boost::shared_ptr<TimeCacheInterface> TimeCacheInterfacePtr;
 /** \brief A class to keep a sorted linked list in time
  * This builds and maintains a list of timestamped
  * data.  And provides lookup functions to get
- * data out as a function of time. *//*
-class TimeCache : public TimeCacheInterface
+ * data out as a function of time. */
+class TimeCache2 : public tf2::TimeCacheInterface
 {
  public:
   static const int MIN_INTERPOLATION_DISTANCE = 5; //!< Number of nano-seconds to not interpolate below.
   static const unsigned int MAX_LENGTH_LINKED_LIST = 1000000; //!< Maximum length of linked list, to make sure not to be able to use unlimited memory.
   static const int64_t DEFAULT_MAX_STORAGE_TIME = 1ULL * 1000000000LL; //!< default value of 10 seconds storage
 
-  TimeCache(ros::Duration  max_storage_time = ros::Duration().fromNSec(DEFAULT_MAX_STORAGE_TIME));
+  TimeCache2(ros::Duration  max_storage_time = ros::Duration().fromNSec(DEFAULT_MAX_STORAGE_TIME));
 
 
   /// Virtual methods
@@ -116,7 +117,7 @@ class TimeCache : public TimeCacheInterface
   virtual ros::Time getOldestTimestamp();
   
 
-private:
+protected:
   typedef std::deque<TransformStorage> L_TransformStorage;
   L_TransformStorage storage_;
 
@@ -135,7 +136,7 @@ private:
 
 
 };
-
+/*
 class StaticCache : public TimeCacheInterface
 {
  public:
@@ -162,8 +163,8 @@ private:
 
 /** \brief Similar to TimeCache except that the number of entries is kept under a 
  * specified count using a FIFO method.
- *//*
-class CountCache : public TimeCache
+ */
+class CountCache : public tf2_mod::TimeCache2
 {
  public:
 
@@ -176,6 +177,8 @@ class CountCache : public TimeCache
 
 private:
 
+  size_t  max_num_entries_;
+
   /// Record the data timestampss in the order they are inserted.
   std::queue<ros::Time> insertion_order_queue_;
   
@@ -183,48 +186,111 @@ private:
   void pruneList();
 
 }; // End class CountCache
-*/
-// TODO: Don't need to store the entire TransformStorage object in any of these classes?
 
+// TODO: Don't need to store the entire TransformStorage object in any of these classes?
+// TODO: Better error handling
 /** \brief A CountCache object backed up by files on disk for long duration transform storage.
- * *//*
+ * */
 class DiskCache : public TimeCacheInterface
 {
 public:
 
   /// Output
-  DiskCache(const std::string &output_prefix, const size_t max_file_size_bytes=104857600,
-            const size_t max_cache_entries=10000);
-  ~DiskCache();
+  DiskCache(const std::string &disk_path,
+            const size_t max_cache_entries=10000)
+            :memory_cache_(max_cache_entries), disk_path_(disk_path) {}
+  ~DiskCache()
+  {
+    // Disconnect from the SQLite database
+    int result = sqlite3_close(db);
+    if (!result)
+      std::cout << "Error code " << result << " when closing SQL connection.\n";
+  }
+
+  /// Prepare for interaction with disk.
+  bool initialize()
+  {
+    // Connect to the SQLite database
+    // - Create the file if it does not exist.
+    int result = sqlite3_open_v2(disk_path_.c_str(), &db,
+                                 SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, 0);
+    if (!result)
+      return false;
+
+    // Define all the columns that will make up the table
+    std::vector<std::string> columns;
+    columns.push_back("idx integer primary key autoincrement");
+    columns.push_back("time real");
+    columns.push_back("parent integer");
+    columns.push_back("child integer");
+    columns.push_back("tx real");
+    columns.push_back("ty real");
+    columns.push_back("tz real");
+    columns.push_back("qx real");
+    columns.push_back("qy real");
+    columns.push_back("qz real");
+    columns.push_back("qw real");
+    
+    std::string table_init_string = "CREATE TABLE IF NOT EXISTS frame_data (";
+    for (size_t i=0; i<columns.size()-1; ++i)
+      table_init_string += columns[i] + ", ";
+    table_init_string += columns.back() + ")";
+
+    //TODO: Error handling
+    executeSqlCommand(table_init_string);
+  }
 
   /// Access data from the cache
   virtual bool getData(ros::Time time, TransformStorage & data_out, std::string* error_str = 0)
   {
-    if (memory_cache_.getData(time, data_out, error_str))
-      return true; // The data was already cached in memory
-    TODO load from disk into memory, then retry from memory
+    // Try from memory
+    if (memory_cache.getData(time, error_str))
+      return true;
+    // Try to move the data from disk to cache
+    if (!diskToCache(time))
+      return false;
+    // Try cache again
+    return memory_cache.getData(time, error_str);
   }
 
   /// Insert data into the cache
   virtual bool insertData(const TransformStorage& new_data)
   {
-    //memory_cache_.insertData(new_data);
-    TODO write to disk
+    memory_cache_.insertData(new_data);
+    
+    // Now insert into the SQL database
+    std::stringstream s;
+    s << "INSERT INTO frame_data VALUES ("
+    s << rosTimeToSqliteTime(new_data.stamp_);
+    s << ", " << new_data.frame_id_;
+    s << ", " << new_data.child_frame_id_;
+    s << ", " << new_data.translation_.x;
+    s << ", " << new_data.translation_.y;
+    s << ", " << new_data.translation_.z;
+    s << ", " << new_data.rotation_.x;
+    s << ", " << new_data.rotation_.y;
+    s << ", " << new_data.rotation_.z;
+    s << ", " << new_data.rotation_.w << ")";
+    return executeSqlCommand(s.str());
   }
 
-  /// Clear the list of stored values
+  /// Clear the list of cached values (not disk data)
   virtual void clearList() 
   {
-    // Don't clear the disk data, just what is cached in memory.
-    memory_cache.clearList();
+    memory_cache_.clearList();
   }
 
   /// Retrieve the parent at a specific time
   virtual CompactFrameID getParent(ros::Time time, std::string* error_str)
   {
-    if (memory_cache(time, error_str))
+    // Try from memory
+    if (memory_cache_.getParent(time, error_str))
       return true;
-    TODO load from disk into memory, then retry from memory
+    // Try to move the data from disk to cache
+    if (!diskToCache(time))
+      return false;
+    // Try cache again
+    return memory_cache.getParent(time, error_str);
   }
 
   ///Get the latest time stored in this cache, and the parent associated with it.  Returns parent = 0 if no data.
@@ -239,106 +305,160 @@ public:
   /// Get the length of the stored list
   virtual unsigned int getListLength()
   {
-    TODO
+    return 0; // TODO: Does this have to be supported?
   }
 
   /// Get the latest timestamp cached
   virtual ros::Time getLatestTimestamp()
   {
-    TODO
+    return ros::Time(); // TODO: Does this have to be supported?
   }
 
   /// Get the oldest timestamp cached
   virtual ros::Time getOldestTimestamp()
   {
-    TODO
+    return ros::Time(); // TODO: Does this have to be supported?
   }
 
 private: // Variables
 
-  /// Names of all the known files on disk
-  std::vector<std::string> files_on_disk_;
-
   /// Memory based portion of the cache
   CountCache memory_cache_;
 
-  /// Path prefix for files written to disk
-  std::string disk_prefix_;
+  /// Location of the database file on disk
+  std::string disk_path_;
 
-  /// Try to keep output log files smaller than this
-  size_t max_file_size_bytes_;
-
-  /// Keep a handle open for writing
-  std::ofstream file_write_handle;
-
-  /// The size of the file opened with file_write_handle
-  size_t output_file_size_;
-
-  // TODO: Use a mutex to prevent multiple access
+  sqlite3 *db_;
 
 private: // Functions
 
+  // TODO: Use the convenience wrappers to reduce the code volume here
 
-  /// Find all of the files already written to disk at the specified prefix
-  size_t findExistingFiles(std::vector<std::string> &file_list)
+
+  /// Convert from the two-int ros::Time to a double used by SQLite
+  double rosTimeToSqliteTime(const ros::Time t)
   {
-    // TODO: Get all the files that start with disk_prefix_
-    return 0;
+    const double SECONDS_PER_DAY = 86400.0;
+    const double UNIX_START      = 2440587.5;
+    const double NANOSECONDS_PER_SECOND = 1000000000;
+
+    double julian_day = (t.sec / SECONDS_PER_DAY) + UNIX_START;
+    double fractional = ros_time.nsec / NANOSECONDS_PER_SECOND;
+    return julian_day + fractional;
   }
 
-  // TODO: More file IO error checking
-
-  // TODO: How to log entries to disk if they can come in out of order?
-  //       -> Seems like only a proper database can really handle this well...
-
-  bool openFileForNewEntry()
+  /// Convert from the two-int ros::Time to a double used by SQLite
+  ros::Time sqliteTimeToRosTime(const double t)
   {
-    // If the current file handle is good just use it.
-    if (file_write_handle_.is_open() && 
-        (output_file_size_ < (max_file_size_bytes_ - sizeof(TransformStorage)))
-      return true;
+    const double SECONDS_PER_DAY = 86400.0;
+    const double UNIX_START      = 2440587.5;
+    const double NANOSECONDS_PER_SECOND = 1000000000;
 
-    // Otherwise close it and open a new one.
-    if (file_write_handle_.is_open())
-      file_write_handle.close();
-    std::string new_file = getFileForWriting();
-    file_write_handle.open(new_file, std::ofstream::binary);
-    output_file_size_ = 0;
-    return true;
+    double seconds = (t - UNIX_START) * SECONDS_PER_DAY;
+    double whole_seconds = floor(seconds);
+    double fraction = seconds - whole_seconds;
+
+    ros::Time rt;
+    rt.sec  = seconds;
+    rt.nsec = fraction * NANOSECONDS_PER_SECOND;
+    return rt;
   }
 
-  /// Open the correct output file for writing
-  std::string getFileForWriting()
-  {
-    std::vector<std::string> file_list;
 
-    size_t num_files = findExistingFiles(file_list);
-    if (num_files > 0)
+  /// Execute an SQL command which expects no outputs
+  bool executeSqlCommand(const std::string &command)
+  {
+    // Prepare the SQL command.
+    sqlite3_stmt *ppStmt;
+    int result = sqlite3_prepare_v2(db_, command.c_str(), -1, &ppStmt, 0);
+    if (result != SQLITE_OK)
+      return false;
+
+    // Execute the command    
+    result = sqlite3_step(ppStmt);
+    if (result != SQLITE_DONE)
+      std::cout << "Error code " << result << " following SQL command: "
+                << command << std::endl;
+
+    // Clean up the command
+    result = sqlite3_finalize(ppStmt);
+    if (result != SQLITE_OK)
+      std::cout << "Error code " << result << " cleaning up SQL command: "
+                << command << std::endl;
+
+    return (result == SQLITE_OK);
+  }
+
+  /// Unpacks a single row from an SQL result into a TransformStorage object.
+  void getDataFromSqlRow(sqlite3_stmt *ppStmt, TransformStorage &ts)
+  {
+    // TODO: Set up according to how we store the object!
+    int X = sqlite3_column(ppStmt, 0);
+  }
+
+  /// Send a data request command to the database and unpack the results.
+  /// - Returns records.size()
+  size_t getSqlRecords(const std::string &command, 
+                       std::vector<TransformStorage> &records)
+  {
+    records.clear();
+
+    // Prepare the SQL command.
+    sqlite3_stmt *ppStmt;
+    int result = sqlite3_prepare_v2(db_, command.c_str(), -1, &ppStmt, 0);
+    if (result != SQLITE_OK)
+      return 0;
+    
+    // Retrieve all of the results
+    TransformStorage ts;
+    result = sqlite3_step(ppStmt);
+    while (result == SQLITE_ROW)
     {
-      size_t last_file_size = 0; // TODO: Get size of file_list.back() in bytes
-      if (last_file_size < max_file_size_bytes_ - sizeof(TransformStorage))
-        return file_list.back();
+      getDataFromSqlRow(ppStmt, TransformStorage ts);
+      records.push_back(ts);
+
+      result = sqlite3_step(ppStmt); // Move on to the next row
     }
-    // If we get here will need to create a new file
-    std::stringstream s;
-    s << disk_prefix_ << "-" << num_files << ".dat";
-    return s.str();
+
+    if (result != SQLITE_DONE)
+      std::cout << "Error code " << result << " following SQL command: "
+                << command << std::endl;
+
+    // Clean up the command
+    result = sqlite3_finalize(ppStmt);
+    if (result != SQLITE_OK)
+      std::cout << "Error code " << result << " cleaning up SQL command: "
+                << command << std::endl;
+
+    return records.size();
   }
 
   /// If available, load data around the selected time into the memory cache.
-  bool diskToCache(ros::Time time, std::string* error_str = 0)
+  size_t diskToCache(ros::Time rt)
   {
+    // Load this many entries in each direction from the target time
+    const int num_border_entries = 2;
+
+    double sqlTime = rosTimeToSqliteTime(rt);
+
+    std::stringstream s;
+    s << "SELECT * FROM frame_data " << sqlTime;
+
+    std::string sql_command = "TODO";
+
+    std::vector<TransformStorage> records;
+    size_t num_records = getSqlRecords(sql_command, records);
+
+    for (size_t i=0; i<num_records.size(); ++i)
+      memory_cache_.insertData(records[i]);
+
+    return num_records;
   }
 
-  /// Get the time span covered by a file on disk
-  bool getTimeRange(const std::string &path, ros::Time &start, ros::Time &end)
-  {
-
-  }
 
 }; // End class DiskCache
 
-*/
+
 
 }
 

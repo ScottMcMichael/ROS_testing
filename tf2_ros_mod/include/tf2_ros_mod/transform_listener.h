@@ -29,8 +29,8 @@
 
 /** \author Tully Foote */
 
-#ifndef TF2_ROS_TRANSFORMLISTENER_H
-#define TF2_ROS_TRANSFORMLISTENER_H
+#ifndef TF2_ROS_MOD_TRANSFORMLISTENER_H
+#define TF2_ROS_MOD_TRANSFORMLISTENER_H
 
 #include "std_msgs/Empty.h"
 #include "tf2_msgs/TFMessage.h"
