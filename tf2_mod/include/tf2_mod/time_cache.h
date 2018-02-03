@@ -235,15 +235,18 @@ public:
     // - Create the file if it does not exist.
     int result = sqlite3_open_v2(disk_path_.c_str(), &db_,
                                  SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, 0);
-    if (!result)
+    if (result != SQLITE_OK)
+    {
+      std::cout << "Error on disk init: " << disk_path_
+                << "  -->  " << result << std::endl;
       return false;
+    }
 
     // Define all the columns that will make up the table
     std::vector<std::string> columns;
-    columns.push_back("idx integer primary key autoincrement");
-    columns.push_back("time real");
-    //columns.push_back("parent integer");
-    //columns.push_back("child integer");
+    //columns.push_back("time real");
+    columns.push_back("sec integer");
+    columns.push_back("nsec integer");   
     columns.push_back("tx real");
     columns.push_back("ty real");
     columns.push_back("tz real");
@@ -258,7 +261,7 @@ public:
     table_init_string += columns.back() + ")";
 
     //TODO: Error handling
-    executeSqlCommand(table_init_string);
+    return executeSqlCommand(table_init_string);
   }
 
   /// Access data from the cache
@@ -267,7 +270,7 @@ public:
     // Try from memory
     if (memory_cache_.getData(time, data_out, error_str))
       return true;
-    
+    std::cout << "Attempting disk retrieval.\n";
     // Try to move the data from disk to the temporary cache
     if (!diskToCache(time))
       return false;
@@ -294,10 +297,10 @@ public:
 
     // Now insert into the SQL database
     std::stringstream s;
+    //s.precision(20);
     s << "INSERT INTO frame_data VALUES (";
-    s << rosTimeToSqliteTime(new_data.stamp_);
-    //s << ", " << new_data.frame_id_;
-    //s << ", " << new_data.child_frame_id_;
+    s << new_data.stamp_.sec;
+    s << ", " << new_data.stamp_.nsec;
     s << ", " << new_data.translation_.getX();
     s << ", " << new_data.translation_.getY();
     s << ", " << new_data.translation_.getZ();
@@ -347,6 +350,49 @@ public:
     return ros::Time(); // TODO: Does this have to be supported?
   }
 
+
+
+/*
+  // These functions can't help but lose accuracy!
+  /// Convert from the two-int ros::Time to a double used by SQLite
+  static double rosTimeToSqliteTime(const ros::Time t)
+  {
+    const uint32_t SECONDS_PER_DAY   = 86400;
+    const double   SECONDS_PER_DAY_D = 86400.0;
+    const double UNIX_START      = 2440587.5; // Unix epoch time in seconds
+    const double NANOSECONDS_PER_SECOND = 1000000000;
+
+    uint32_t days           = t.sec / SECONDS_PER_DAY;
+    uint32_t remaining_secs = t.sec % SECONDS_PER_DAY;
+
+    double julian_day = static_cast<double>(days) + 
+                static_cast<double>(remaining_secs) / SECONDS_PER_DAY_D
+                + UNIX_START;
+
+    //double julian_day = (t.sec / SECONDS_PER_DAY) + UNIX_START;
+    double fractional = static_cast<double>(t.nsec) / NANOSECONDS_PER_SECOND;
+    return julian_day + fractional;
+  }
+
+  /// Convert from the two-int ros::Time to a double used by SQLite
+  static ros::Time sqliteTimeToRosTime(const double t)
+  {
+    const double SECONDS_PER_DAY = 86400.0;
+    const double UNIX_START      = 2440587.5;
+    const double NANOSECONDS_PER_SECOND = 1000000000;
+
+    double seconds = (t - UNIX_START) * SECONDS_PER_DAY;
+    double whole_seconds = floor(seconds);
+    double fraction = seconds - whole_seconds;
+
+    ros::Time rt;
+    rt.sec  = seconds;
+    rt.nsec = fraction * NANOSECONDS_PER_SECOND;
+    return rt;
+  }
+*/
+
+
 private: // Variables
 
   /// Memory based portion of the cache.
@@ -375,34 +421,6 @@ private: // Functions
   // TODO: Bulk up table inserts then do them all as part of a transaction
   //       - Must insert after a timeout!
 
-  /// Convert from the two-int ros::Time to a double used by SQLite
-  double rosTimeToSqliteTime(const ros::Time t)
-  {
-    const double SECONDS_PER_DAY = 86400.0;
-    const double UNIX_START      = 2440587.5;
-    const double NANOSECONDS_PER_SECOND = 1000000000;
-
-    double julian_day = (t.sec / SECONDS_PER_DAY) + UNIX_START;
-    double fractional = t.nsec / NANOSECONDS_PER_SECOND;
-    return julian_day + fractional;
-  }
-
-  /// Convert from the two-int ros::Time to a double used by SQLite
-  ros::Time sqliteTimeToRosTime(const double t)
-  {
-    const double SECONDS_PER_DAY = 86400.0;
-    const double UNIX_START      = 2440587.5;
-    const double NANOSECONDS_PER_SECOND = 1000000000;
-
-    double seconds = (t - UNIX_START) * SECONDS_PER_DAY;
-    double whole_seconds = floor(seconds);
-    double fraction = seconds - whole_seconds;
-
-    ros::Time rt;
-    rt.sec  = seconds;
-    rt.nsec = fraction * NANOSECONDS_PER_SECOND;
-    return rt;
-  }
 
 
   /// Execute an SQL command which expects no outputs
@@ -412,7 +430,12 @@ private: // Functions
     sqlite3_stmt *ppStmt;
     int result = sqlite3_prepare_v2(db_, command.c_str(), -1, &ppStmt, 0);
     if (result != SQLITE_OK)
+    {
+      std::cout << "Error executing command " << command << std::endl;
       return false;
+    }
+    else
+      std::cout << "Executed command " << command << std::endl;
 
     // Execute the command    
     result = sqlite3_step(ppStmt);
@@ -433,18 +456,18 @@ private: // Functions
   void getDataFromSqlRow(sqlite3_stmt *ppStmt, TransformStorage &ts)
   {
     double tx, ty, tz, rx, ry, rz, rw, sqlTime;
-    sqlTime            = sqlite3_column_double(ppStmt, 0);
-    ts.frame_id_       = parent_frame_id_;//sqlite3_column_int(ppStmt, 1);
-    ts.child_frame_id_ = child_frame_id_;  //sqlite3_column_int(ppStmt, 2);
-    tx = sqlite3_column_double(ppStmt, 1);
-    ty = sqlite3_column_double(ppStmt, 2);
-    tz = sqlite3_column_double(ppStmt, 3);
-    rx = sqlite3_column_double(ppStmt, 4);
-    ry = sqlite3_column_double(ppStmt, 5);
-    rz = sqlite3_column_double(ppStmt, 6);
-    rw = sqlite3_column_double(ppStmt, 7);
+    ts.stamp_.sec      = sqlite3_column_int(ppStmt, 0);
+    ts.stamp_.nsec     = sqlite3_column_int(ppStmt, 1);
+    ts.frame_id_       = parent_frame_id_;
+    ts.child_frame_id_ = child_frame_id_;
+    tx = sqlite3_column_double(ppStmt, 2);
+    ty = sqlite3_column_double(ppStmt, 3);
+    tz = sqlite3_column_double(ppStmt, 4);
+    rx = sqlite3_column_double(ppStmt, 5);
+    ry = sqlite3_column_double(ppStmt, 6);
+    rz = sqlite3_column_double(ppStmt, 7);
+    rw = sqlite3_column_double(ppStmt, 8);
 
-    ts.stamp_       = sqliteTimeToRosTime(sqlTime);
     ts.translation_ = tf2::Vector3(tx, ty, tz);
     ts.rotation_    = tf2::Quaternion(rx, ry, rz, rw);
   }
@@ -456,11 +479,16 @@ private: // Functions
   {
     records.clear();
 
+    std::cout << "Retrieving disks with command: " << command << std::endl;
+
     // Prepare the SQL command.
     sqlite3_stmt *ppStmt;
     int result = sqlite3_prepare_v2(db_, command.c_str(), -1, &ppStmt, 0);
     if (result != SQLITE_OK)
+    {
+      std::cout << "Error code: " << result << std::endl;
       return 0;
+    }
     
     // Retrieve all of the results
     TransformStorage ts;
@@ -489,27 +517,39 @@ private: // Functions
   /// If available, load data around the selected time into the memory cache.
   size_t diskToCache(ros::Time rt)
   {
+    // TODO: Break out this parameter!
     // Load this many entries in each direction from the target time
-    const int NUM_DESIRED_BORDERS = 2;
+    // - Since we only search for data based on the whole second count,
+    //   we need to request enough data points that we catch all of 
+    //   the desired nsec points in our data range.  Currently we only
+    //   interpolate from the two adjacent points so we only need to
+    //   extend one second out in each direction.
+    const int NUM_DESIRED_BORDERS = 10;
 
-    double sqlTime = rosTimeToSqliteTime(rt);
+    int sec = rt.sec;
 
     // Assemble the query command
     // - Two queries, one to find N points before our time and
     //   another to find N points after it.
     std::stringstream s;
-    s << "SELECT * FROM frame_data WHERE time >= "
-      << sqlTime 
-      << " ORDER BY time LIMIT " << NUM_DESIRED_BORDERS
-      << "	UNION ALL (SELECT *	FROM frame_data	WHERE time < "
-      << sqlTime << " ORDER BY time DESC LIMIT " 
+    s.precision(20);
+    s << "SELECT * FROM (SELECT * FROM frame_data WHERE sec >= "
+      << sec 
+      << " ORDER BY sec ASC, nsec ASC LIMIT " << NUM_DESIRED_BORDERS
+      << ") UNION SELECT * FROM (SELECT * FROM frame_data WHERE sec < "
+      << sec << " ORDER BY sec DESC, nsec DESC LIMIT " 
       << NUM_DESIRED_BORDERS << ")";
 
     std::vector<TransformStorage> records;
     size_t num_records = getSqlRecords(s.str(), records);
 
-    for (size_t i=0; i<num_records; ++i)
+    std::cout << "Retrieved " << num_records << " records from disk.\n";
+
+    for (size_t i=0; i<num_records; ++i) 
+    {
       temporary_cache_.insertData(records[i]);
+      //std::cout << "Insert " << records[i].stamp_ << std::endl;
+    }
 
     return num_records;
   }

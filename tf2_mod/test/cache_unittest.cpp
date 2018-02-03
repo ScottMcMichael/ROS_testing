@@ -443,3 +443,47 @@ TEST(CountCache, Ordering)
   EXPECT_FALSE(cache.getData(ros::Time().fromNSec(1), stor));
   
 }
+
+// TODO: Make this use a temporary DB file
+TEST(DiskCache, Ordering)
+{
+  TransformStorage stor;
+  setIdentity(stor);
+  stor.frame_id_ = 1;
+  stor.child_frame_id_ = 2;
+
+  unsigned int limit = 3;
+  std::string fname = "/home/smcmich1/dummy.db";
+  remove(fname.c_str()); // Delete any existing db file
+  tf2_mod::DiskCache cache(stor.frame_id_, stor.child_frame_id_, fname);
+  EXPECT_TRUE(cache.initialize());
+  
+  // Add some items
+  ros::Time::init();
+  stor.stamp_ = ros::Time().now();
+  for (int i=0; i<10; ++i)
+  {
+    //stor.stamp_.nsec = 0; // DEBUG
+    //double sql_time = cache.rosTimeToSqliteTime(stor.stamp_);
+    //ros::Time t2 = cache.sqliteTimeToRosTime(sql_time);
+    //EXPECT_EQ(stor.stamp_.sec, t2.sec);
+    //EXPECT_EQ(stor.stamp_.nsec, t2.nsec);
+
+    cache.insertData(stor);
+    stor.stamp_ = stor.stamp_ + ros::Duration(1, 0);
+    //std::cout << stor.stamp_ << std::endl;
+  }
+  ros::Time test_time = stor.stamp_ - ros::Duration(5, 0);
+
+  // Verify we can retrieve an item
+  EXPECT_TRUE(cache.getData(test_time, stor));
+  EXPECT_FALSE(cache.getData(ros::Time().fromNSec(100), stor));
+
+  // Artificially clear the memory cache
+  cache.clearList();
+  //std::cout << "CLEAR\n";
+
+  // We should still be able to retrieve an item
+  EXPECT_TRUE(cache.getData(test_time, stor));
+  EXPECT_FALSE(cache.getData(ros::Time().fromNSec(100), stor));
+}

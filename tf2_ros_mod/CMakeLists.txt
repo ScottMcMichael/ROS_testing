@@ -135,7 +135,8 @@ target_link_libraries(${PROJECT_NAME}_test_time_reset
 add_dependencies(tests ${PROJECT_NAME}_test_listener)
 add_dependencies(tests ${PROJECT_NAME}_test_time_reset)
 
-add_rostest(test/transform_listener_unittest.launch)
-add_rostest(test/transform_listener_time_reset_test.launch)
+# Disabled for now to speed up testing
+#add_rostest(test/transform_listener_unittest.launch)
+#add_rostest(test/transform_listener_time_reset_test.launch)
 
 endif()
