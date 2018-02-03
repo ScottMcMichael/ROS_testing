@@ -45,6 +45,8 @@
 
 #include <boost/shared_ptr.hpp>
 
+#include <sqlite3.h> // TODO: Hide in the CPP file?
+
 namespace geometry_msgs
 {
 ROS_DECLARE_MESSAGE(TransformStamped);
@@ -187,22 +189,41 @@ private:
 
 }; // End class CountCache
 
-// TODO: Don't need to store the entire TransformStorage object in any of these classes?
+// TODO: Move out of ROS!
+// TODO: Need to store a "version number" in the database to allow point updates
+//       - Need to record the time of entry in addition to the version number?
+//       -> Current plan is that upates must always be for an existing timestamp/entry!
+//       - Separate table for updates?
+//       - Modifications can't be through the TF interface, need another process to put these in.
+//       - Need to make sure that modifications get to the right file/table
 // TODO: Better error handling
-/** \brief A CountCache object backed up by files on disk for long duration transform storage.
+// TODO: Verify that the time conversions are repeatable!
+/** \brief A Cache object backed up by files on disk for long duration transform storage.
+ *  - Each DiskCache object is locked to a certain parent/child frame combination.
+ *  - Each parent/child frame combination must have a different file on disk.
+ *  - The in-memory cache does not look at updates inserted into the disk database.
+ *    Because of this, no updates should be committed until after max_storage_time
+ *    has elapsed after the data was initially published.
  * */
-class DiskCache : public TimeCacheInterface
+class DiskCache : public tf2::TimeCacheInterface
 {
 public:
 
-  /// Output
-  DiskCache(const std::string &disk_path,
-            const size_t max_cache_entries=10000)
-            :memory_cache_(max_cache_entries), disk_path_(disk_path) {}
+  static const int64_t DEFAULT_MAX_STORAGE_TIME = 300ULL * 100000000LL; //!< default value of 5 minutes storage
+  static const size_t TEMP_CACHE_MAX_SIZE = 5000;
+
+  // The ID's are required here because they are constant for each Cache object.
+  DiskCache(CompactFrameID parent_id,
+            CompactFrameID child_id,
+            const std::string &disk_path="/home/smcmich1/dummy.db",
+            const ros::Duration max_storage_time = ros::Duration().fromNSec(DEFAULT_MAX_STORAGE_TIME))
+            :memory_cache_(max_storage_time), temporary_cache_(TEMP_CACHE_MAX_SIZE),
+            disk_path_(disk_path),
+             parent_frame_id_(parent_id), child_frame_id_(child_id) {}
   ~DiskCache()
   {
     // Disconnect from the SQLite database
-    int result = sqlite3_close(db);
+    int result = sqlite3_close(db_);
     if (!result)
       std::cout << "Error code " << result << " when closing SQL connection.\n";
   }
@@ -212,7 +233,7 @@ public:
   {
     // Connect to the SQLite database
     // - Create the file if it does not exist.
-    int result = sqlite3_open_v2(disk_path_.c_str(), &db,
+    int result = sqlite3_open_v2(disk_path_.c_str(), &db_,
                                  SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, 0);
     if (!result)
       return false;
@@ -221,8 +242,8 @@ public:
     std::vector<std::string> columns;
     columns.push_back("idx integer primary key autoincrement");
     columns.push_back("time real");
-    columns.push_back("parent integer");
-    columns.push_back("child integer");
+    //columns.push_back("parent integer");
+    //columns.push_back("child integer");
     columns.push_back("tx real");
     columns.push_back("ty real");
     columns.push_back("tz real");
@@ -244,33 +265,46 @@ public:
   virtual bool getData(ros::Time time, TransformStorage & data_out, std::string* error_str = 0)
   {
     // Try from memory
-    if (memory_cache.getData(time, error_str))
+    if (memory_cache_.getData(time, data_out, error_str))
       return true;
-    // Try to move the data from disk to cache
+    
+    // Try to move the data from disk to the temporary cache
     if (!diskToCache(time))
       return false;
-    // Try cache again
-    return memory_cache.getData(time, error_str);
+
+    // Try to process from the temporary cache
+    bool result = temporary_cache_.getData(time, data_out, error_str);
+    temporary_cache_.clearList();
+    return result;
   }
 
   /// Insert data into the cache
   virtual bool insertData(const TransformStorage& new_data)
   {
+    // Verify that these are the expected frame ID's
+    if ((new_data.frame_id_       != parent_frame_id_) ||
+        (new_data.child_frame_id_ != child_frame_id_ )   )
+    {
+      std::cout << "DiskCache ID mismatch!\n";
+      return false;
+    }
+
+    // Local memory insert
     memory_cache_.insertData(new_data);
-    
+
     // Now insert into the SQL database
     std::stringstream s;
-    s << "INSERT INTO frame_data VALUES ("
+    s << "INSERT INTO frame_data VALUES (";
     s << rosTimeToSqliteTime(new_data.stamp_);
-    s << ", " << new_data.frame_id_;
-    s << ", " << new_data.child_frame_id_;
-    s << ", " << new_data.translation_.x;
-    s << ", " << new_data.translation_.y;
-    s << ", " << new_data.translation_.z;
-    s << ", " << new_data.rotation_.x;
-    s << ", " << new_data.rotation_.y;
-    s << ", " << new_data.rotation_.z;
-    s << ", " << new_data.rotation_.w << ")";
+    //s << ", " << new_data.frame_id_;
+    //s << ", " << new_data.child_frame_id_;
+    s << ", " << new_data.translation_.getX();
+    s << ", " << new_data.translation_.getY();
+    s << ", " << new_data.translation_.getZ();
+    s << ", " << new_data.rotation_.getAxis().x();
+    s << ", " << new_data.rotation_.getAxis().y();
+    s << ", " << new_data.rotation_.getAxis().z();
+    s << ", " << new_data.rotation_.getW() << ")";
     return executeSqlCommand(s.str());
   }
 
@@ -283,14 +317,7 @@ public:
   /// Retrieve the parent at a specific time
   virtual CompactFrameID getParent(ros::Time time, std::string* error_str)
   {
-    // Try from memory
-    if (memory_cache_.getParent(time, error_str))
-      return true;
-    // Try to move the data from disk to cache
-    if (!diskToCache(time))
-      return false;
-    // Try cache again
-    return memory_cache.getParent(time, error_str);
+    return parent_frame_id_; // Not sure why this is a function...
   }
 
   ///Get the latest time stored in this cache, and the parent associated with it.  Returns parent = 0 if no data.
@@ -322,18 +349,31 @@ public:
 
 private: // Variables
 
-  /// Memory based portion of the cache
-  CountCache memory_cache_;
+  /// Memory based portion of the cache.
+  /// - Never gets updated information from the database.
+  tf2::TimeCache memory_cache_;
+
+  /// Cache object used only for immediate interpolation of disk data.
+  /// - Cleared after each time it is used so that it never has "stale" data
+  ///   that is missing a recent update in the disk database.
+  CountCache temporary_cache_;
 
   /// Location of the database file on disk
   std::string disk_path_;
 
+  /// Database handle.
   sqlite3 *db_;
+
+  // The parent and child frames are fixed on initialization.
+  tf2::CompactFrameID parent_frame_id_;
+  tf2::CompactFrameID child_frame_id_;
 
 private: // Functions
 
   // TODO: Use the convenience wrappers to reduce the code volume here
 
+  // TODO: Bulk up table inserts then do them all as part of a transaction
+  //       - Must insert after a timeout!
 
   /// Convert from the two-int ros::Time to a double used by SQLite
   double rosTimeToSqliteTime(const ros::Time t)
@@ -343,7 +383,7 @@ private: // Functions
     const double NANOSECONDS_PER_SECOND = 1000000000;
 
     double julian_day = (t.sec / SECONDS_PER_DAY) + UNIX_START;
-    double fractional = ros_time.nsec / NANOSECONDS_PER_SECOND;
+    double fractional = t.nsec / NANOSECONDS_PER_SECOND;
     return julian_day + fractional;
   }
 
@@ -392,8 +432,21 @@ private: // Functions
   /// Unpacks a single row from an SQL result into a TransformStorage object.
   void getDataFromSqlRow(sqlite3_stmt *ppStmt, TransformStorage &ts)
   {
-    // TODO: Set up according to how we store the object!
-    int X = sqlite3_column(ppStmt, 0);
+    double tx, ty, tz, rx, ry, rz, rw, sqlTime;
+    sqlTime            = sqlite3_column_double(ppStmt, 0);
+    ts.frame_id_       = parent_frame_id_;//sqlite3_column_int(ppStmt, 1);
+    ts.child_frame_id_ = child_frame_id_;  //sqlite3_column_int(ppStmt, 2);
+    tx = sqlite3_column_double(ppStmt, 1);
+    ty = sqlite3_column_double(ppStmt, 2);
+    tz = sqlite3_column_double(ppStmt, 3);
+    rx = sqlite3_column_double(ppStmt, 4);
+    ry = sqlite3_column_double(ppStmt, 5);
+    rz = sqlite3_column_double(ppStmt, 6);
+    rw = sqlite3_column_double(ppStmt, 7);
+
+    ts.stamp_       = sqliteTimeToRosTime(sqlTime);
+    ts.translation_ = tf2::Vector3(tx, ty, tz);
+    ts.rotation_    = tf2::Quaternion(rx, ry, rz, rw);
   }
 
   /// Send a data request command to the database and unpack the results.
@@ -414,7 +467,7 @@ private: // Functions
     result = sqlite3_step(ppStmt);
     while (result == SQLITE_ROW)
     {
-      getDataFromSqlRow(ppStmt, TransformStorage ts);
+      getDataFromSqlRow(ppStmt, ts);
       records.push_back(ts);
 
       result = sqlite3_step(ppStmt); // Move on to the next row
@@ -437,20 +490,26 @@ private: // Functions
   size_t diskToCache(ros::Time rt)
   {
     // Load this many entries in each direction from the target time
-    const int num_border_entries = 2;
+    const int NUM_DESIRED_BORDERS = 2;
 
     double sqlTime = rosTimeToSqliteTime(rt);
 
+    // Assemble the query command
+    // - Two queries, one to find N points before our time and
+    //   another to find N points after it.
     std::stringstream s;
-    s << "SELECT * FROM frame_data " << sqlTime;
-
-    std::string sql_command = "TODO";
+    s << "SELECT * FROM frame_data WHERE time >= "
+      << sqlTime 
+      << " ORDER BY time LIMIT " << NUM_DESIRED_BORDERS
+      << "	UNION ALL (SELECT *	FROM frame_data	WHERE time < "
+      << sqlTime << " ORDER BY time DESC LIMIT " 
+      << NUM_DESIRED_BORDERS << ")";
 
     std::vector<TransformStorage> records;
-    size_t num_records = getSqlRecords(sql_command, records);
+    size_t num_records = getSqlRecords(s.str(), records);
 
-    for (size_t i=0; i<num_records.size(); ++i)
-      memory_cache_.insertData(records[i]);
+    for (size_t i=0; i<num_records; ++i)
+      temporary_cache_.insertData(records[i]);
 
     return num_records;
   }

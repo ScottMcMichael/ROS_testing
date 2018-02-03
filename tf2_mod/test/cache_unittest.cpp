@@ -64,8 +64,8 @@ double get_rand()
 
 //using namespace tf2;
 using tf2::TransformStorage;
-typedef tf2_mod::CountCache TimeCache;
-
+using tf2::TimeCache;
+//typedef tf2::DiskCache TimeCache;
 
 void setIdentity(TransformStorage& stor)
 {

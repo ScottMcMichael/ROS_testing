@@ -126,7 +126,6 @@ target_link_libraries(${PROJECT_NAME}_test_listener
   ${GTEST_LIBRARIES}
 )
 
-message("CL = ${catkin_LIBRARIES}")
 target_link_libraries(${PROJECT_NAME}_test_time_reset
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}

@@ -103,8 +103,8 @@ public:
   struct CacheCreatorInterface
   {
     virtual TimeCacheInterfacePtr createCache(CompactFrameID cfid, bool is_static,
-                                              const std::string & parent_id,
-                                              const std::string & child_id) = 0;
+                                              const CompactFrameID parent_id,
+                                              const CompactFrameID child_id) = 0;
   };
   typedef boost::shared_ptr<CacheCreatorInterface> CacheCreatorPtr;
 
@@ -116,8 +116,8 @@ public:
      : cache_time_(cache_time) {}
 
     virtual TimeCacheInterfacePtr createCache(CompactFrameID cfid, bool is_static,
-                                              const std::string & parent_id,
-                                              const std::string & child_id)
+                                              const CompactFrameID /*parent_id*/,
+                                              const CompactFrameID /*child_id*/)
     {
       if (is_static)
         return TimeCacheInterfacePtr(new StaticCache());

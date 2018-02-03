@@ -5,6 +5,10 @@ find_package(console_bridge REQUIRED)
 find_package(catkin REQUIRED COMPONENTS geometry_msgs rostime tf2 tf2_msgs)
 find_package(Boost REQUIRED COMPONENTS signals system thread)
 
+# To make sure we can get sqlite3
+include_directories(/usr/include)
+link_directories(/usr/lib)
+
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES tf2_mod 
@@ -19,7 +23,7 @@ include_directories(include ${catkin_INCLUDE_DIRS} ${console_bridge_INCLUDE_DIRS
 #CPP Libraries
 add_library(tf2_mod src/cache.cpp src/buffer_core.cpp src/static_cache.cpp)
 target_link_libraries(tf2_mod ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
-add_dependencies(tf2_mod ${catkin_EXPORTED_TARGETS})
+add_dependencies(tf2_mod sqlite3 ${catkin_EXPORTED_TARGETS})
 
 install(TARGETS tf2_mod
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
@@ -35,7 +39,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
 if(CATKIN_ENABLE_TESTING)
 
 catkin_add_gtest(test_cache_unittest test/cache_unittest.cpp)
-target_link_libraries(test_cache_unittest tf2_mod  ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
+target_link_libraries(test_cache_unittest tf2_mod sqlite3 ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
 add_dependencies(test_cache_unittest ${catkin_EXPORTED_TARGETS})
 
 catkin_add_gtest(test_static_cache_unittest test/static_cache_test.cpp)
@@ -43,11 +47,11 @@ target_link_libraries(test_static_cache_unittest tf2_mod  ${catkin_LIBRARIES} ${
 add_dependencies(test_static_cache_unittest ${catkin_EXPORTED_TARGETS})
 
 catkin_add_gtest(test_simple test/simple_tf2_core.cpp)
-target_link_libraries(test_simple tf2_mod  ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
+target_link_libraries(test_simple tf2_mod sqlite3 ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
 add_dependencies(test_simple ${catkin_EXPORTED_TARGETS})
 
 add_executable(speed_test EXCLUDE_FROM_ALL test/speed_test.cpp)
-target_link_libraries(speed_test tf2_mod  ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
+target_link_libraries(speed_test tf2_mod sqlite3 ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
 add_dependencies(tests speed_test)
 add_dependencies(tests ${catkin_EXPORTED_TARGETS})
 
