@@ -317,50 +317,5 @@ void TimeCache2::pruneList()
   }
 }
 
-//==========================================================================================
-// CountCache
-
-CountCache::CountCache(size_t max_num_entries)
-: max_num_entries_(max_num_entries)
-{}
-
-// This is the same as for TimeCache but with the time limit removed.
-bool CountCache::insertData(const tf2::TransformStorage& new_data)
-{
-  L_TransformStorage::iterator storage_it = storage_.begin();
-
-  while(storage_it != storage_.end())
-  {
-    if (storage_it->stamp_ <= new_data.stamp_)
-      break;
-    storage_it++;
-  }
-  storage_.insert(storage_it, new_data);
-  insertion_order_queue_.push(new_data.stamp_);
-  
-  pruneList();
-  return true;
-}
-
-void CountCache::pruneList()
-{
-  // No need to prune until we hit the entry limit
-  if (insertion_order_queue_.size() <= max_num_entries_)
-    return;
-
-  // Remove the entry from our time-sorted storage_ that matches the
-  //  oldest entry in our insertion_order_queue
-  for (L_TransformStorage::iterator iter = storage_.begin(); iter != storage_.end(); ++iter)
-  {
-    if (iter->stamp_ == insertion_order_queue_.front())
-    {
-      storage_.erase(iter);
-      insertion_order_queue_.pop();
-      break;
-    }
-  }
-
-}
-
 } // namespace tf2
 
