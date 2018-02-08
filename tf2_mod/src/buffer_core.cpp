@@ -276,7 +276,9 @@ bool BufferCore::setTransform(const geometry_msgs::TransformStamped& transform_i
     TimeCacheInterfacePtr frame = getFrame(frame_number);
     if (frame == NULL)
     {
-      frame = cache_creator_ptr_->createCache(frame_number, is_static, 
+      frame = cache_creator_ptr_->createCache(is_static, 
+                                              stripped.header.frame_id,
+                                              stripped.child_frame_id,
                                               parent_frame_number,
                                               frame_number);
       frames_[frame_number] = frame;

@@ -100,9 +100,12 @@ public:
   static const int DEFAULT_CACHE_TIME = 10;  //!< The default amount of time to cache data in seconds
   static const uint32_t MAX_GRAPH_DEPTH = 1000UL;  //!< Maximum graph search depth (deeper graphs will be assumed to have loops)
 
+  // TODO: Move out of BufferCore?
   struct CacheCreatorInterface
   {
-    virtual TimeCacheInterfacePtr createCache(CompactFrameID cfid, bool is_static,
+    virtual TimeCacheInterfacePtr createCache(bool is_static,
+                                              const std::string & parent_frame,
+                                              const std::string & child_frame,
                                               const CompactFrameID parent_id,
                                               const CompactFrameID child_id) = 0;
   };
@@ -115,9 +118,11 @@ public:
     TimeCacheCreator(ros::Duration cache_time = ros::Duration(DEFAULT_CACHE_TIME))
      : cache_time_(cache_time) {}
 
-    virtual TimeCacheInterfacePtr createCache(CompactFrameID cfid, bool is_static,
-                                              const CompactFrameID /*parent_id*/,
-                                              const CompactFrameID /*child_id*/)
+    virtual TimeCacheInterfacePtr createCache(bool is_static,
+                                              const std::string & parent_frame,
+                                              const std::string & child_frame,
+                                              const CompactFrameID parent_id,
+                                              const CompactFrameID child_id)
     {
       if (is_static)
         return TimeCacheInterfacePtr(new StaticCache());
