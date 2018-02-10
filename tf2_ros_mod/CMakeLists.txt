@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(tf2_ros_mod)
 
-if(NOT ANDROID)
-set(TF2_PY tf2_py)
-endif()
+#if(NOT ANDROID)
+#set(TF2_PY tf2_py)
+#endif()
 
 find_package(catkin REQUIRED COMPONENTS
   actionlib
@@ -17,11 +17,11 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2_mod
   tf2_msgs
-  ${TF2_PY}
+#  ${TF2_PY}
 )
 find_package(Boost REQUIRED COMPONENTS thread)
 
-catkin_python_setup()
+#catkin_python_setup()
 
 catkin_package(
   INCLUDE_DIRS include
@@ -37,7 +37,7 @@ catkin_package(
   tf2_ros
   tf2_mod
   tf2_msgs
-  ${TF2_PY}
+  #${TF2_PY}
 )
 
 include_directories(include ${catkin_INCLUDE_DIRS})
@@ -94,7 +94,8 @@ install(DIRECTORY include/${PROJECT_NAME}/
 
 
 # Tests
-if(CATKIN_ENABLE_TESTING)
+#if(CATKIN_ENABLE_TESTING)
+if(FALSE)
 
 # new requirements for testing
 find_package(catkin REQUIRED COMPONENTS
@@ -110,7 +111,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2_mod
   tf2_msgs
-  ${TF2_PY}
+  #${TF2_PY}
 )
 
 
