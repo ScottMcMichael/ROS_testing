@@ -19,7 +19,7 @@ include_directories(include ${catkin_INCLUDE_DIRS} ${console_bridge_INCLUDE_DIRS
 #CPP Libraries
 add_library(tf2_mod src/cache.cpp src/buffer_core.cpp src/static_cache.cpp)
 target_link_libraries(tf2_mod ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
-add_dependencies(tf2_mod sqlite3 ${catkin_EXPORTED_TARGETS})
+add_dependencies(tf2_mod ${catkin_EXPORTED_TARGETS})
 
 install(TARGETS tf2_mod
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
