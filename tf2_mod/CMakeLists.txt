@@ -1,54 +1,70 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(tf2_mod)
 
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
+
+find_package(ament_cmake)
 find_package(console_bridge REQUIRED)
-find_package(catkin REQUIRED COMPONENTS geometry_msgs rostime tf2 tf2_msgs)
-find_package(Boost REQUIRED COMPONENTS signals system thread)
+find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 
-catkin_package(
-   INCLUDE_DIRS include
-   LIBRARIES tf2_mod 
-   DEPENDS console_bridge
-   CATKIN_DEPENDS geometry_msgs tf2_msgs rostime)
-
-include_directories (src/bt)
-include_directories(include ${catkin_INCLUDE_DIRS} ${console_bridge_INCLUDE_DIRS})
+include_directories(include src/bt ${geometry_msgs_INCLUDE_DIRS} ${console_bridge_INCLUDE_DIRS})
 
 # export user definitions
 
 #CPP Libraries
-add_library(tf2_mod src/cache.cpp src/buffer_core.cpp src/static_cache.cpp)
-target_link_libraries(tf2_mod ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
-add_dependencies(tf2_mod ${catkin_EXPORTED_TARGETS})
+add_library(tf2_mod SHARED src/cache.cpp src/buffer_core.cpp src/static_cache.cpp)
+target_link_libraries(tf2_mod ${geometry_msgs_LIBRARIES} ${console_bridge_LIBRARIES})
+# Causes the visibility macros to use dllexport rather than dllimport,
+# which is appropriate when building the dll but not consuming it.
+target_compile_definitions(tf2_mod PRIVATE "TF2_BUILDING_DLL")
 
 install(TARGETS tf2_mod
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )
 
 install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  DESTINATION include/${PROJECT_NAME}
 )
 
 # Tests
-if(CATKIN_ENABLE_TESTING)
+if(BUILD_TESTING)
+  # TODO(tfoote) enable linters
+  # find_package(ament_lint_auto REQUIRED)
+  # ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_gtest)
 
-catkin_add_gtest(test_cache_unittest test/cache_unittest.cpp)
-target_link_libraries(test_cache_unittest tf2_mod ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
-add_dependencies(test_cache_unittest ${catkin_EXPORTED_TARGETS})
+  # TODO: Remove redundant test file!
+  #ament_add_gtest(test_cache_unittest test/cache_unittest.cpp)
+  #if(TARGET test_cache_unittest)
+  #  target_link_libraries(test_cache_unittest tf2_mod ${geometry_msgs_LIBRARIES} ${console_bridge_LIBRARIES})
+  #endif()
 
-catkin_add_gtest(test_static_cache_unittest test/static_cache_test.cpp)
-target_link_libraries(test_static_cache_unittest tf2_mod  ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
-add_dependencies(test_static_cache_unittest ${catkin_EXPORTED_TARGETS})
+  # TODO: Remove redundant test file!
+  #ament_add_gtest(test_static_cache_unittest test/static_cache_test.cpp)
+  #if(TARGET test_static_cache_unittest)
+  #  target_link_libraries(test_static_cache_unittest tf2_mod ${geometry_msgs_LIBRARIES} ${console_bridge_LIBRARIES})
+  #endif()
 
-catkin_add_gtest(test_simple test/simple_tf2_core.cpp)
-target_link_libraries(test_simple tf2_mod ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
-add_dependencies(test_simple ${catkin_EXPORTED_TARGETS})
+  ament_add_gtest(test_simple test/simple_tf2_core.cpp)
+  if(TARGET test_simple)
+    target_link_libraries(test_simple tf2_mod ${tf2_LIBRARIES} ${geometry_msgs_LIBRARIES} ${console_bridge_LIBRARIES})
+  endif()
 
-add_executable(speed_test EXCLUDE_FROM_ALL test/speed_test.cpp)
-target_link_libraries(speed_test tf2_mod ${catkin_LIBRARIES} ${console_bridge_LIBRARIES})
-add_dependencies(tests speed_test)
-add_dependencies(tests ${catkin_EXPORTED_TARGETS})
+# TODO(tfoote) reimplement speed test without dependency on message datatypes.
+# add_executable(speed_test EXCLUDE_FROM_ALL test/speed_test.cpp)
+# target_link_libraries(speed_test tf2_mod  ${geometry_msgs_LIBRARIES} ${console_bridge_LIBRARIES})
+# add_dependencies(tests speed_test)
 
 endif()
+
+ament_export_dependencies(console_bridge)
+ament_export_dependencies(tf2)
+ament_export_include_directories(include)
+ament_export_libraries(tf2_mod)
+ament_package()

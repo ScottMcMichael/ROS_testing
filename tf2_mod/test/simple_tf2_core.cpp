@@ -27,298 +27,200 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+
+
+#include <chrono>
 #include <gtest/gtest.h>
 #include <tf2_mod/buffer_core.h>
-#include <sys/time.h>
-#include <ros/ros.h>
 #include "tf2/LinearMath/Vector3.h"
 #include "tf2/exceptions.h"
+#include "tf2/time.h"
+
 
 using tf2_mod::BufferCore;
-using tf2_mod::TestBufferCore;
+//using tf2_mod::TestBufferCore;
 
 TEST(tf2, setTransformFail)
 {
   BufferCore tfc;
-  geometry_msgs::TransformStamped st;
+  geometry_msgs::msg::TransformStamped st;
+  st.header.frame_id = "";
+  st.header.stamp = builtin_interfaces::msg::Time();
+  st.header.stamp.sec = 1;
+  st.header.stamp.nanosec = 1;
+  st.child_frame_id = "";
+  st.transform.translation.x = 0;
+  st.transform.translation.y = 0;
+  st.transform.translation.z = 0;
+  st.transform.rotation.x = 0;
+  st.transform.rotation.y = 0;
+  st.transform.rotation.z = 0;
+  st.transform.rotation.w = 0;
   EXPECT_FALSE(tfc.setTransform(st, "authority1"));
-
+  
 }
 
 TEST(tf2, setTransformValid)
 {
   BufferCore tfc;
-  geometry_msgs::TransformStamped st;
+  geometry_msgs::msg::TransformStamped st;
   st.header.frame_id = "foo";
-  st.header.stamp = ros::Time(1.0);
+  st.header.stamp = builtin_interfaces::msg::Time();
+  st.header.stamp.sec = 1;
+  st.header.stamp.nanosec = 1;
   st.child_frame_id = "child";
+  st.transform.translation.x = 0;
+  st.transform.translation.y = 0;
+  st.transform.translation.z = 0;
+  st.transform.rotation.x = 0;
+  st.transform.rotation.y = 0;
+  st.transform.rotation.z = 0;
   st.transform.rotation.w = 1;
   EXPECT_TRUE(tfc.setTransform(st, "authority1"));
-
+  
 }
 
 TEST(tf2, setTransformInvalidQuaternion)
 {
   BufferCore tfc;
-  geometry_msgs::TransformStamped st;
+  geometry_msgs::msg::TransformStamped st;
   st.header.frame_id = "foo";
-  st.header.stamp = ros::Time(1.0);
+  st.header.stamp = builtin_interfaces::msg::Time();
+  st.header.stamp.sec = 1;
+  st.header.stamp.nanosec = 1;
   st.child_frame_id = "child";
+  st.transform.translation.x = 0;
+  st.transform.translation.y = 0;
+  st.transform.translation.z = 0;
+  st.transform.rotation.x = 0;
+  st.transform.rotation.y = 0;
+  st.transform.rotation.z = 0;
   st.transform.rotation.w = 0;
   EXPECT_FALSE(tfc.setTransform(st, "authority1"));
-
+  
 }
 
 TEST(tf2_lookupTransform, LookupException_Nothing_Exists)
 {
   BufferCore tfc;
-  EXPECT_THROW(tfc.lookupTransform("a", "b", ros::Time().fromSec(1.0)), tf2::LookupException);
-
+  EXPECT_THROW(tfc.lookupTransform("a", "b", tf2::TimePoint(std::chrono::seconds(1))), tf2::LookupException);
+  
 }
 
 TEST(tf2_canTransform, Nothing_Exists)
 {
   BufferCore tfc;
-  EXPECT_FALSE(tfc.canTransform("a", "b", ros::Time().fromSec(1.0)));
-
-  std::string error_msg = std::string();
-  EXPECT_FALSE(tfc.canTransform("a", "b", ros::Time().fromSec(1.0), &error_msg));
-  ASSERT_STREQ(error_msg.c_str(), "canTransform: target_frame a does not exist. canTransform: source_frame b does not exist.");
-
+  EXPECT_FALSE(tfc.canTransform("a", "b", tf2::TimePoint(std::chrono::seconds(1))));
+  
 }
 
 TEST(tf2_lookupTransform, LookupException_One_Exists)
 {
   BufferCore tfc;
-  geometry_msgs::TransformStamped st;
+  geometry_msgs::msg::TransformStamped st;
   st.header.frame_id = "foo";
-  st.header.stamp = ros::Time(1.0);
+  st.header.stamp = builtin_interfaces::msg::Time();
+  st.header.stamp.sec = 1;
+  st.header.stamp.nanosec = 0;
   st.child_frame_id = "child";
+  st.transform.translation.x = 0;
+  st.transform.translation.y = 0;
+  st.transform.translation.z = 0;
+  st.transform.rotation.x = 0;
+  st.transform.rotation.y = 0;
+  st.transform.rotation.z = 0;
   st.transform.rotation.w = 1;
   EXPECT_TRUE(tfc.setTransform(st, "authority1"));
-  EXPECT_THROW(tfc.lookupTransform("foo", "bar", ros::Time().fromSec(1.0)), tf2::LookupException);
-
+  EXPECT_THROW(tfc.lookupTransform("foo", "bar", tf2::TimePoint(std::chrono::seconds(1))), tf2::LookupException);
+  
 }
 
 TEST(tf2_canTransform, One_Exists)
 {
   BufferCore tfc;
-  geometry_msgs::TransformStamped st;
+  geometry_msgs::msg::TransformStamped st;
   st.header.frame_id = "foo";
-  st.header.stamp = ros::Time(1.0);
+  st.header.stamp = builtin_interfaces::msg::Time();
+  st.header.stamp.sec = 1;
+  st.header.stamp.nanosec = 0;
   st.child_frame_id = "child";
+  st.transform.translation.x = 0;
+  st.transform.translation.y = 0;
+  st.transform.translation.z = 0;
+  st.transform.rotation.x = 0;
+  st.transform.rotation.y = 0;
+  st.transform.rotation.z = 0;
   st.transform.rotation.w = 1;
   EXPECT_TRUE(tfc.setTransform(st, "authority1"));
-  EXPECT_FALSE(tfc.canTransform("foo", "bar", ros::Time().fromSec(1.0)));
+  EXPECT_FALSE(tfc.canTransform("foo", "bar", tf2::TimePoint(std::chrono::seconds(1))));
 }
 
-TEST(tf2_chainAsVector, chain_v_configuration)
+TEST(tf2_time, Display_Time_Point)
 {
-  BufferCore mBC;
-  TestBufferCore tBC;
-
-  geometry_msgs::TransformStamped st;
-  st.header.stamp = ros::Time(0);
-  st.transform.rotation.w = 1;
-
-  st.header.frame_id = "a";
-  st.child_frame_id = "b";
-  mBC.setTransform(st, "authority1");
-
-  st.header.frame_id = "b";
-  st.child_frame_id = "c";
-  mBC.setTransform(st, "authority1");
-
-  st.header.frame_id = "a";
-  st.child_frame_id = "d";
-  mBC.setTransform(st, "authority1");
-
-  st.header.frame_id = "d";
-  st.child_frame_id = "e";
-  mBC.setTransform(st, "authority1");
-
-  std::vector<std::string> chain;
-  
-  
-  mBC._chainAsVector( "c", ros::Time(), "c", ros::Time(), "c", chain);
-  EXPECT_EQ( 0, chain.size());
-
-  mBC._chainAsVector( "a", ros::Time(), "c", ros::Time(), "c", chain);
-  EXPECT_EQ( 3, chain.size());
-  if( chain.size() >= 1 ) EXPECT_EQ( chain[0], "c" );
-  if( chain.size() >= 2 ) EXPECT_EQ( chain[1], "b" );
-  if( chain.size() >= 3 ) EXPECT_EQ( chain[2], "a" );
-
-  mBC._chainAsVector( "c", ros::Time(), "a", ros::Time(), "c", chain);
-  EXPECT_EQ( 3, chain.size());
-  if( chain.size() >= 1 ) EXPECT_EQ( chain[0], "a" );
-  if( chain.size() >= 2 ) EXPECT_EQ( chain[1], "b" );
-  if( chain.size() >= 3 ) EXPECT_EQ( chain[2], "c" );
-
-  mBC._chainAsVector( "a", ros::Time(), "c", ros::Time(), "a", chain);
-  EXPECT_EQ( 3, chain.size());
-  if( chain.size() >= 1 ) EXPECT_EQ( chain[0], "c" );
-  if( chain.size() >= 2 ) EXPECT_EQ( chain[1], "b" );
-  if( chain.size() >= 3 ) EXPECT_EQ( chain[2], "a" );
-
-  mBC._chainAsVector( "c", ros::Time(), "a", ros::Time(), "a", chain);
-  EXPECT_EQ( 3, chain.size());
-  if( chain.size() >= 1 ) EXPECT_EQ( chain[0], "a" );
-  if( chain.size() >= 2 ) EXPECT_EQ( chain[1], "b" );
-  if( chain.size() >= 3 ) EXPECT_EQ( chain[2], "c" );
-  
-  mBC._chainAsVector( "c", ros::Time(), "e", ros::Time(), "c", chain);
-
-  EXPECT_EQ( 5, chain.size());
-  if( chain.size() >= 1 ) EXPECT_EQ( chain[0], "e" );
-  if( chain.size() >= 2 ) EXPECT_EQ( chain[1], "d" );
-  if( chain.size() >= 3 ) EXPECT_EQ( chain[2], "a" );
-  if( chain.size() >= 4 ) EXPECT_EQ( chain[3], "b" );
-  if( chain.size() >= 5 ) EXPECT_EQ( chain[4], "c" );
-
-  mBC._chainAsVector( "c", ros::Time(), "e", ros::Time(), "a", chain);
-
-  EXPECT_EQ( 5, chain.size());
-  if( chain.size() >= 1 ) EXPECT_EQ( chain[0], "e" );
-  if( chain.size() >= 2 ) EXPECT_EQ( chain[1], "d" );
-  if( chain.size() >= 3 ) EXPECT_EQ( chain[2], "a" );
-  if( chain.size() >= 4 ) EXPECT_EQ( chain[3], "b" );
-  if( chain.size() >= 5 ) EXPECT_EQ( chain[4], "c" );
-
-  mBC._chainAsVector( "c", ros::Time(), "e", ros::Time(), "e", chain);
-
-  EXPECT_EQ( 5, chain.size());
-  if( chain.size() >= 1 ) EXPECT_EQ( chain[0], "e" );
-  if( chain.size() >= 2 ) EXPECT_EQ( chain[1], "d" );
-  if( chain.size() >= 3 ) EXPECT_EQ( chain[2], "a" );
-  if( chain.size() >= 4 ) EXPECT_EQ( chain[3], "b" );
-  if( chain.size() >= 5 ) EXPECT_EQ( chain[4], "c" );
+  tf2::TimePoint t = tf2::get_now();
+  // Check ability to stringify
+  std::string s = tf2::displayTimePoint(t);
 }
 
-TEST(tf2_walkToTopParent, walk_i_configuration)
+TEST(tf2_time, To_From_Sec)
 {
-  BufferCore mBC;
-  TestBufferCore tBC;
+  // Exact representation of a time.
+  tf2::TimePoint t1 = tf2::get_now();
 
-  geometry_msgs::TransformStamped st;
-  st.header.stamp = ros::Time(0);
-  st.transform.rotation.w = 1;
+  // Approximate representation of the time in seconds as a double (floating point error introduced).
+  double t1_sec = tf2::timeToSec(t1);
 
-  st.header.frame_id = "a";
-  st.child_frame_id = "b";
-  mBC.setTransform(st, "authority1");
+  // Time point from the t1_sec approximation.
+  tf2::TimePoint t2 = tf2::timeFromSec(t1_sec);
 
-  st.header.frame_id = "b";
-  st.child_frame_id = "c";
-  mBC.setTransform(st, "authority1");
+  // Check that the difference due to t1_sec being approximate is small.
+  tf2::Duration diff = t2 > t1 ? t2 - t1 : t1 - t2;
+  EXPECT_TRUE(diff < tf2::Duration(std::chrono::nanoseconds(200)));
 
-  st.header.frame_id = "c";
-  st.child_frame_id = "d";
-  mBC.setTransform(st, "authority1");
-
-  st.header.frame_id = "d";
-  st.child_frame_id = "e";
-  mBC.setTransform(st, "authority1");
-
-  std::vector<tf2::CompactFrameID> id_chain;
-  tBC._walkToTopParent(mBC, ros::Time(), mBC._lookupFrameNumber("a"), mBC._lookupFrameNumber("e"), 0, &id_chain);
-
-  EXPECT_EQ(5, id_chain.size() );
-  if( id_chain.size() >= 1 ) EXPECT_EQ("e", tBC._lookupFrameString(mBC, id_chain[0]));
-  if( id_chain.size() >= 2 ) EXPECT_EQ("d", tBC._lookupFrameString(mBC, id_chain[1]));
-  if( id_chain.size() >= 3 ) EXPECT_EQ("c", tBC._lookupFrameString(mBC, id_chain[2]));
-  if( id_chain.size() >= 4 ) EXPECT_EQ("b", tBC._lookupFrameString(mBC, id_chain[3]));
-  if( id_chain.size() >= 5 ) EXPECT_EQ("a", tBC._lookupFrameString(mBC, id_chain[4]));
-
-  id_chain.clear();
-  tBC._walkToTopParent(mBC,  ros::Time(), mBC._lookupFrameNumber("e"), mBC._lookupFrameNumber("a"), 0, &id_chain);
-
-  EXPECT_EQ(5, id_chain.size() );
-  if( id_chain.size() >= 1 ) EXPECT_EQ("a", tBC._lookupFrameString(mBC, id_chain[0]));
-  if( id_chain.size() >= 2 ) EXPECT_EQ("b", tBC._lookupFrameString(mBC, id_chain[1]));
-  if( id_chain.size() >= 3 ) EXPECT_EQ("c", tBC._lookupFrameString(mBC, id_chain[2]));
-  if( id_chain.size() >= 4 ) EXPECT_EQ("d", tBC._lookupFrameString(mBC, id_chain[3]));
-  if( id_chain.size() >= 5 ) EXPECT_EQ("e", tBC._lookupFrameString(mBC, id_chain[4]));
-
+  // No new floating point errors are expected after converting to and from time points.
+  double t2_sec = tf2::timeToSec(t2);
+  EXPECT_EQ(t1_sec, t2_sec);
+  EXPECT_EQ(tf2::timeFromSec(t1_sec), tf2::timeFromSec(t2_sec));
 }
 
-TEST(tf2_walkToTopParent, walk_v_configuration)
+TEST(tf2_time, To_From_Duration)
 {
-  BufferCore mBC;
-  TestBufferCore tBC;
+  tf2::TimePoint t1 = tf2::get_now();
 
-  geometry_msgs::TransformStamped st;
-  st.header.stamp = ros::Time(0);
-  st.transform.rotation.w = 1;
+  std::vector<double> values = {
+    -0.01, -0.2, -0.5, -0.7, -0.99, -5.7, -1000000, -123456789.123456789,
+    0.01, 0.2, 0.5, 0.7, 0.99, 5.7, 10000000, 123456789.123456789,
+    0.0,
+  };
 
-  // st.header.frame_id = "aaa";
-  // st.child_frame_id = "aa";
-  // mBC.setTransform(st, "authority1");
-  // 
-  // st.header.frame_id = "aa";
-  // st.child_frame_id = "a";
-  // mBC.setTransform(st, "authority1");  
+  for (double expected_diff_sec : values )
+  {
+    tf2::TimePoint t2 = tf2::timeFromSec(tf2::timeToSec(t1) + expected_diff_sec);
 
-  st.header.frame_id = "a";
-  st.child_frame_id = "b";
-  mBC.setTransform(st, "authority1");
+    // Check durationToSec.
+    tf2::Duration duration1 = t2 - t1;
 
-  st.header.frame_id = "b";
-  st.child_frame_id = "c";
-  mBC.setTransform(st, "authority1");
+    // Approximate representation of the duration in seconds as a double (floating point error introduced).
+    double duration1_sec = tf2::durationToSec(duration1);
 
-  st.header.frame_id = "a";
-  st.child_frame_id = "d";
-  mBC.setTransform(st, "authority1");
+    // Check that the difference due to duration_sec being approximate is small.
+    double error_sec = duration1_sec - expected_diff_sec;
+    EXPECT_TRUE(std::abs(error_sec) < 200 * 1e-9);
 
-  st.header.frame_id = "d";
-  st.child_frame_id = "e";
-  mBC.setTransform(st, "authority1");
+    // Check durationFromSec.
+    tf2::Duration duration2 = tf2::durationFromSec(tf2::durationToSec(duration1));
+    tf2::Duration error_duration = duration1 - duration2;
+    // Get the absolute difference between Durations.
+    error_duration = error_duration > tf2::Duration(0) ? error_duration : -error_duration;
+    // Increased tolerance for larger differences.
+    int32_t tol_ns = std::abs(expected_diff_sec) > 100000 ? 10 : 1;
 
-  std::vector<tf2::CompactFrameID> id_chain;
-  tBC._walkToTopParent(mBC,  ros::Time(), mBC._lookupFrameNumber("e"), mBC._lookupFrameNumber("c"), 0, &id_chain);
-
-  EXPECT_EQ(5, id_chain.size());
-  if( id_chain.size() >= 1 ) EXPECT_EQ("c", tBC._lookupFrameString(mBC, id_chain[0]));
-  if( id_chain.size() >= 2 ) EXPECT_EQ("b", tBC._lookupFrameString(mBC, id_chain[1]));
-  if( id_chain.size() >= 3 ) EXPECT_EQ("a", tBC._lookupFrameString(mBC, id_chain[2]));
-  if( id_chain.size() >= 4 ) EXPECT_EQ("d", tBC._lookupFrameString(mBC, id_chain[3]));
-  if( id_chain.size() >= 5 ) EXPECT_EQ("e", tBC._lookupFrameString(mBC, id_chain[4]));
-
-  tBC._walkToTopParent(mBC,  ros::Time(), mBC._lookupFrameNumber("c"), mBC._lookupFrameNumber("e"), 0, &id_chain);
-  EXPECT_EQ(5, id_chain.size());
-  if( id_chain.size() >= 1 ) EXPECT_EQ("e", tBC._lookupFrameString(mBC, id_chain[0]));
-  if( id_chain.size() >= 2 ) EXPECT_EQ("d", tBC._lookupFrameString(mBC, id_chain[1]));
-  if( id_chain.size() >= 3 ) EXPECT_EQ("a", tBC._lookupFrameString(mBC, id_chain[2]));
-  if( id_chain.size() >= 4 ) EXPECT_EQ("b", tBC._lookupFrameString(mBC, id_chain[3]));
-  if( id_chain.size() >= 5 ) EXPECT_EQ("c", tBC._lookupFrameString(mBC, id_chain[4]));
-
-  tBC._walkToTopParent(mBC,  ros::Time(), mBC._lookupFrameNumber("a"), mBC._lookupFrameNumber("e"), 0, &id_chain);
-  EXPECT_EQ( id_chain.size(), 3 );
-  if( id_chain.size() >= 1 ) EXPECT_EQ("e", tBC._lookupFrameString(mBC, id_chain[0]));
-  if( id_chain.size() >= 2 ) EXPECT_EQ("d", tBC._lookupFrameString(mBC, id_chain[1]));
-  if( id_chain.size() >= 3 ) EXPECT_EQ("a", tBC._lookupFrameString(mBC, id_chain[2]));
-
-  tBC._walkToTopParent(mBC,  ros::Time(), mBC._lookupFrameNumber("e"), mBC._lookupFrameNumber("a"), 0, &id_chain);
-  EXPECT_EQ( id_chain.size(), 3 );
-  if( id_chain.size() >= 1 ) EXPECT_EQ("a", tBC._lookupFrameString(mBC, id_chain[0]));
-  if( id_chain.size() >= 2 ) EXPECT_EQ("d", tBC._lookupFrameString(mBC, id_chain[1]));
-  if( id_chain.size() >= 3 ) EXPECT_EQ("e", tBC._lookupFrameString(mBC, id_chain[2]));
-
-  tBC._walkToTopParent(mBC,  ros::Time(), mBC._lookupFrameNumber("e"), mBC._lookupFrameNumber("d"), 0, &id_chain);
-  EXPECT_EQ( id_chain.size(), 2 );
-  if( id_chain.size() >= 1 ) EXPECT_EQ("d", tBC._lookupFrameString(mBC, id_chain[0]));
-  if( id_chain.size() >= 2 ) EXPECT_EQ("e", tBC._lookupFrameString(mBC, id_chain[1]));
-
-  tBC._walkToTopParent(mBC,  ros::Time(), mBC._lookupFrameNumber("d"), mBC._lookupFrameNumber("e"), 0, &id_chain);
-  EXPECT_EQ( id_chain.size(), 2 );
-  if( id_chain.size() >= 1 ) EXPECT_EQ("e", tBC._lookupFrameString(mBC, id_chain[0]));
-  if( id_chain.size() >= 2 ) EXPECT_EQ("d", tBC._lookupFrameString(mBC, id_chain[1]));
+    EXPECT_TRUE(error_duration < tf2::Duration(std::chrono::nanoseconds(tol_ns)));
+  }
 }
 
 
 int main(int argc, char **argv){
   testing::InitGoogleTest(&argc, argv);
-  ros::Time::init(); //needed for ros::TIme::now()
   return RUN_ALL_TESTS();
 }

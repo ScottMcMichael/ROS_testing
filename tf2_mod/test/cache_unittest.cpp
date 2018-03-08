@@ -27,15 +27,14 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <cmath>
 #include <gtest/gtest.h>
-#include <tf2_mod/time_cache.h>
-#include <sys/time.h>
-#include "tf2/LinearMath/Quaternion.h"
 #include <stdexcept>
 
-#include <geometry_msgs/TransformStamped.h>
+#include "tf2_mod/time_cache.h"
+#include "tf2/LinearMath/Quaternion.h"
 
-#include <cmath>
+
 
 std::vector<double> values;
 unsigned int step = 0;
